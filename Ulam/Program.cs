@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
@@ -9,8 +7,14 @@ namespace Ulam
 {
     class Program
     {
+        //const int PRIME_COUNT_MAX = 1048576;
+        //const int PRIME_COUNT_MAX = 131072;
+        const int PRIME_COUNT_MAX = 65536;
+        const int SAMPLE_COUNT = 128;
+
         static void Main(string[] args)
         {
+            // Deprecated original single-thread solution
             /*Stopwatch sw = new Stopwatch();
             const int PRIME_COUNT_MAX = 1048576;
             int[] primes = new int[PRIME_COUNT_MAX];
@@ -39,10 +43,7 @@ namespace Ulam
                               counter.ToString() + ". prime number: " + primes.Last().ToString());
             Console.ReadLine();*/
 
-            const int PRIME_COUNT_MAX = 1048576;
-            //const int PRIME_COUNT_MAX = 65536;
-            const int SAMPLE_COUNT = 32;
-
+            // Prepare all the objects
             Task[] taskUnits = new Task[SAMPLE_COUNT];
             long[] taskTimes = new long[SAMPLE_COUNT];
             Stopwatch swRealTime = new Stopwatch();
@@ -54,27 +55,35 @@ namespace Ulam
             Console.WriteLine("Computing...");
 
             swRealTime.Restart();
-            
+
+            // Construct the task units
             for (int i = 0; i < SAMPLE_COUNT; i++)
             {
+                // i needs to be cloned, otherwise a reference would be passed to the task
+                // and it would throw an IndexOutOfRangeException for each task
                 int iClone = i;
-                taskUnits[i] = new Task(() => taskTimes[iClone] = computePrimes(PRIME_COUNT_MAX/*, iClone*/));
+                taskUnits[iClone] = new Task(() => taskTimes[iClone] = computePrimes());
             }
 
             //Console.WriteLine("Task units initialized. [" + swRealTime.ElapsedMilliseconds.ToString() + " ms]");
 
+            // Start the task units
             for (int i = 0; i < taskUnits.Length; i++)
                 taskUnits[i].Start();
+                //taskUnits[i].RunSynchronously(); // Single-thread option
 
+            // ~5% slower multitasking solution
             /*for (int i = 0; i < SAMPLE_COUNT; i++)
             {
                 int iClone = i;
-                taskUnits[i] = Task.Factory.StartNew(() => taskTimes[iClone] = computePrimes(PRIME_COUNT_MAX, iClone));
+                taskUnits[i] = Task.Factory.StartNew(() => taskTimes[iClone] = computePrimes());
             }*/
 
             //Console.WriteLine("Task units started. [" + swRealTime.ElapsedMilliseconds.ToString() + " ms]");
-            
+
             Task.WaitAll(taskUnits);
+
+            //Console.WriteLine("Task units finished. [" + swRealTime.ElapsedMilliseconds.ToString() + " ms]");
 
             swRealTime.Stop();
 
@@ -85,7 +94,7 @@ namespace Ulam
             Console.ReadLine();
         }
 
-        private static long computePrimes(int _count/*, int _taskID*/)
+        private static long computePrimes(int _count = PRIME_COUNT_MAX)
         {
             int[] primes = new int[_count];
             int counter = 0;
@@ -99,7 +108,7 @@ namespace Ulam
 
             sw.Stop();
 
-            //Console.WriteLine("Computation finished! #{0} [{1}] ({2} ms)", _taskID, _count, sw.ElapsedMilliseconds);
+            //Console.WriteLine("Computation finished! [{0}] ({1} ms)", _count, sw.ElapsedMilliseconds);
 
             return sw.ElapsedMilliseconds;
         }
